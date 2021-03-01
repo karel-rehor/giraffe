@@ -114,9 +114,14 @@ const Geo: FunctionComponent<Props> = props => {
   }
 
   const latLon = preprocessedTable.getLatLon(0)
+  //  const mapCenter = {
+  //    lat: latLon ? latLon.lat : lat,
+  //    lon: latLon ? latLon.lon : lon,
+  //  }
+
   const mapCenter = {
-    lat: latLon ? latLon.lat : lat,
-    lon: latLon ? latLon.lon : lon,
+    lat: lat,
+    lon: lon,
   }
 
   return (
