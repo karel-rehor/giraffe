@@ -49,7 +49,8 @@ const genericKnobs = () => {
     step: 1,
   })
   const allowPanAndZoom = boolean('Allow pan and zoom', true)
-  return {allowPanAndZoom, latitude, longitude, zoom}
+  const detectCoordinateFields = boolean('Detect Coordinate Fields', false)
+  return {allowPanAndZoom, latitude, longitude, zoom, detectCoordinateFields}
 }
 
 const buildCircleMapStory = tileServerConfiguration => () => {
@@ -141,22 +142,76 @@ geo.add('Map Markers Static', () => {
   )
 })
 
+const calcLatLonFromCSV = (csv, method = 'first') => {
+  const rows = csv.split('\n')
+
+  if (rows.length > 5) {
+    const heads = rows[3].split(',')
+    const latIndex = heads.indexOf('lat')
+    const lonIndex = heads.indexOf('lon')
+    switch (method) {
+      case 'first':
+        const firstDataLine = rows[4].split(',')
+        return {lat: firstDataLine[latIndex], lon: firstDataLine[lonIndex]}
+      case 'center':
+        let latMax = -90.0
+        let latMin = 90.0
+        let lonMax = -180.0
+        let lonMin = 180.0
+        for (let i = 4; i < rows.length; i++) {
+          let dataLine = rows[i].split(',')
+          latMax =
+            parseFloat(dataLine[latIndex]) > latMax
+              ? parseFloat(dataLine[latIndex])
+              : latMax
+          latMin =
+            parseFloat(dataLine[latIndex]) < latMin
+              ? parseFloat(dataLine[latIndex])
+              : latMin
+          lonMax =
+            parseFloat(dataLine[lonIndex]) > lonMax
+              ? parseFloat(dataLine[lonIndex])
+              : lonMax
+          lonMin =
+            parseFloat(dataLine[lonIndex]) < lonMin
+              ? parseFloat(dataLine[lonIndex])
+              : lonMin
+        }
+        return {lat: (latMax + latMin) / 2, lon: (lonMax + lonMin) / 2}
+      default:
+        return {}
+    }
+  } else {
+    return {}
+  }
+}
+
 geo.add('Map Markers Custom CSV', () => {
   const csv = text('Paste CSV here:', '')
   let table = fromFlux(csv).table
 
-  const {allowPanAndZoom, latitude, longitude, zoom} = genericKnobs()
+  let csvCoords = calcLatLonFromCSV(csv, 'center')
+
+  console.log('DEBUG csvCoords ' + JSON.stringify(csvCoords))
+
+  const {
+    allowPanAndZoom,
+    latitude,
+    longitude,
+    zoom,
+    detectCoordinateFields,
+  } = genericKnobs()
   const config: Config = {
     table: table,
     showAxes: false,
     layers: [
       {
         type: 'geo',
-        lat: latitude,
-        lon: longitude,
+        lat: csvCoords.lat ? csvCoords.lat : latitude,
+        lon: csvCoords.lon > -1 ? csvCoords.lon : longitude,
         zoom,
         allowPanAndZoom,
-        detectCoordinateFields: false,
+        detectCoordinateFields,
         layers: [
           {
             type: 'pointMap',
